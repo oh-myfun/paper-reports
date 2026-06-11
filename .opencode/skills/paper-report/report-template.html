@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{PAPER_TITLE}} — 阅读报告</title>
+<script>
+MathJax = {
+  tex: {
+    inlineMath: [['$','$']],
+    displayMath: [['$$','$$']],
+    processEscapes: true
+  },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-card: #161b22;
+    --bg-code: #1c2128;
+    --text: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-link: #58a6ff;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88,166,255,0.15);
+    --border: #30363d;
+    --border-light: #21262d;
+    --gradient-start: #58a6ff;
+    --gradient-end: #bc8cff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.8;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 48px 28px;
+  }
+
+  /* Header */
+  .report-header {
+    text-align: center;
+    padding: 40px 32px 36px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .report-header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
+  }
+  .report-header h1 {
+    font-size: 1.85em;
+    color: var(--text);
+    margin-bottom: 8px;
+    line-height: 1.4;
+    font-weight: 700;
+  }
+  .report-header .title-en {
+    font-size: 0.95em;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+  }
+  .report-header .meta {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    line-height: 1.6;
+  }
+
+  /* Sections */
+  h2 {
+    font-size: 1.35em;
+    color: var(--text);
+    margin-top: 44px;
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    font-weight: 700;
+  }
+  h2::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 40px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+  }
+  h3 {
+    font-size: 1.15em;
+    color: var(--accent);
+    margin-top: 28px;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  h4 {
+    font-size: 1.05em;
+    color: var(--text-secondary);
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  p { margin-bottom: 14px; }
+
+  /* Lists */
+  ul, ol {
+    margin: 12px 0 14px 24px;
+    line-height: 1.8;
+  }
+  ul li, ol li {
+    margin-bottom: 6px;
+  }
+  ul { list-style-type: disc; }
+  ol { list-style-type: decimal; }
+
+  /* Code */
+  code {
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", Menlo, Consolas, monospace;
+    font-size: 0.88em;
+    background: var(--bg-code);
+    color: var(--accent);
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--border-light);
+  }
+  pre {
+    background: var(--bg-code);
+    padding: 16px 20px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 16px 0;
+    line-height: 1.5;
+    border: 1px solid var(--border);
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    font-size: 0.85em;
+    color: var(--text);
+    border: none;
+  }
+
+  /* Figures */
+  .figure {
+    margin: 28px 0;
+    text-align: center;
+    background: var(--bg-card);
+    padding: 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .figure img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+  }
+  .figure figcaption {
+    margin-top: 10px;
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  /* Highlight box */
+  .highlight {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 18px 22px;
+    margin: 24px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .highlight p {
+    margin-bottom: 10px;
+  }
+  .highlight p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 24px 0;
+    font-size: 0.92em;
+  }
+  th, td {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    text-align: left;
+  }
+  th {
+    background: var(--bg-card);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  td {
+    background: var(--bg);
+  }
+  caption {
+    text-align: left;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+  }
+
+  /* Blockquote */
+  blockquote {
+    border-left: 3px solid var(--accent);
+    padding: 12px 18px;
+    margin: 16px 0;
+    background: var(--accent-soft);
+    border-radius: 0 6px 6px 0;
+    color: var(--text);
+    font-style: italic;
+  }
+
+  /* Footer */
+  .report-footer {
+    margin-top: 52px;
+    padding: 20px 0;
+    border-top: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== 报告头部 ==================== -->
+<div class="report-header">
+  <h1>{{PAPER_TITLE_CN}}</h1>
+  <p class="title-en">{{PAPER_TITLE_EN}}</p>
+  <div class="meta">
+    <span>作者：{{AUTHORS}}</span><br>
+    <span>机构：{{AFFILIATIONS}}</span><br>
+    <span>来源：{{VENUE}} · {{YEAR}}</span>
+  </div>
+</div>
+
+<!-- ==================== 正文区域 ==================== -->
+
+<h2>一、研究背景与动机</h2>
+<p>{{BACKGROUND_CONTENT}}</p>
+
+<h2>二、核心方法 / 技术方案</h2>
+<p>{{METHOD_CONTENT}}</p>
+
+<!-- 示例：嵌入图片 -->
+<figure class="figure">
+  <img src="{{FIG1_BASE64}}" alt="Figure 1: 系统架构">
+  <figcaption>图 1：{{FIG1_CAPTION}}</figcaption>
+</figure>
+
+<h2>三、实验设计</h2>
+<p>{{EXPERIMENT_DESIGN}}</p>
+
+<h2>四、实验结果与分析</h2>
+<p>{{RESULTS_CONTENT}}</p>
+
+<figure class="figure">
+  <img src="{{FIG2_BASE64}}" alt="Figure 2: 实验结果">
+  <figcaption>图 2：{{FIG2_CAPTION}}</figcaption>
+</figure>
+
+<h2>五、主要贡献与创新点</h2>
+<div class="highlight">
+  <p>{{CONTRIBUTIONS}}</p>
+</div>
+
+<h2>六、局限性与未来方向</h2>
+<p>{{LIMITATIONS}}</p>
+
+<h2>七、个人点评与总结</h2>
+<p>{{COMMENTARY}}</p>
+
+<!-- ==================== 页脚 ==================== -->
+<div class="report-footer">
+  基于论文原文整理 · 仅供学术交流参考
+</div>
+
+</body>
+</html>

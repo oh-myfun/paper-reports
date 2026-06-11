@@ -1,0 +1,4 @@
+pages/
+figures/
+__pycache__/
+*.pyc
