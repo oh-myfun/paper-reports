@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>报告查看器</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0d1117;--card:#161b22;--p:#4f8af7;--pm:rgba(79,138,247,.12);--bd:rgba(79,138,247,.22);--t:#e6edf3;--mt:#8b949e;--content-bg:#1a1a2e;--font:'Source Sans 3','Noto Sans SC',system-ui,sans-serif}
+html,body{height:100%;background:var(--bg);font-family:var(--font);color:var(--t);overflow:hidden}
+.app{display:flex;height:100vh}
+.sidebar{width:220px;background:var(--card);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.sidebar.hidden{display:none}
+.sidebar-header{padding:16px;border-bottom:1px solid var(--bd)}
+.sidebar-header h2{font-size:14px;color:var(--p);margin-bottom:4px;word-break:break-all}
+.sidebar-header a{font-size:12px;color:var(--mt);text-decoration:none}
+.sidebar-header a:hover{color:var(--p)}
+.page-list{flex:1;overflow-y:auto;padding:8px}
+.page-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--mt);transition:background .15s,color .15s}
+.page-item:hover{background:var(--pm);color:var(--t)}
+.page-item.active{background:var(--pm);color:var(--p);border:1px solid var(--bd)}
+.page-num{font-weight:600;font-size:11px;color:var(--p);min-width:24px}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.toolbar{display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--bd);flex-shrink:0}
+.toolbar .page-title{font-size:13px;color:var(--t);flex:1}
+.toolbar button{background:var(--pm);border:1px solid var(--bd);color:var(--p);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px}
+.toolbar button:hover{background:var(--bd)}
+.toolbar .nav-group{display:flex;gap:4px}
+.toolbar .nav-group.hidden{display:none}
+.content{flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;background:var(--content-bg)}
+iframe{border:none;flex-shrink:0}
+iframe.fit{width:1017px;height:720px;transform-origin:center}
+iframe.full{width:100%;height:100%}
+.toolbar a{font-size:12px;color:var(--mt);text-decoration:none;flex-shrink:0}
+.toolbar a:hover{color:var(--p)}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="sidebar" id="sidebar">
+<div class="sidebar-header">
+<h2 id="reportName"></h2>
+<a href="/">返回索引</a>
+</div>
+<div class="page-list" id="pageList"></div>
+</div>
+<div class="main">
+<div class="toolbar">
+<a href="/" style="font-size:12px;color:var(--mt);text-decoration:none">索引</a>
+<div class="nav-group" id="navGroup">
+<button onclick="prevPage()">上一页</button>
+<button onclick="nextPage()">下一页</button>
+</div>
+<div class="page-title" id="pageTitle"></div>
+<button onclick="zoomFit()">适配</button>
+<button onclick="zoom100()">100%</button>
+</div>
+<div class="content" id="content">
+<iframe id="frame"></iframe>
+</div>
+</div>
+</div>
+<script>
+const path=location.pathname.replace('/view/','');
+let pages=[];let idx=0;let zoomMode='fit';let reportType='directory';
+async function loadReport(){
+  try{const r=await fetch('/api/reports');const data=await r.json();
+    const report=data.find(d=>d.name===path);
+    if(!report){document.getElementById('reportName').textContent='未找到';return}
+    document.getElementById('reportName').textContent=report.name;
+    pages=report.pages;reportType=report.type;
+    if(reportType==='single'){
+      document.getElementById('sidebar').classList.add('hidden');
+      document.getElementById('navGroup').classList.add('hidden');
+      document.getElementById('frame').classList.add('full');
+      document.getElementById('frame').classList.remove('fit');
+      document.getElementById('pageTitle').textContent=report.name;
+      document.getElementById('frame').src='/file/'+path;
+      return}
+    if(idx>=pages.length)idx=0;
+    document.getElementById('frame').classList.add('fit');
+    document.getElementById('frame').classList.remove('full');
+    renderPages();showPage(idx)}catch(e){console.error(e)}
+}
+function renderPages(){
+  const list=document.getElementById('pageList');list.innerHTML='';
+  pages.forEach((p,i)=>{
+    const item=document.createElement('div');item.className='page-item'+(i===idx?' active':'');
+    item.innerHTML=`<span class="page-num">P${i}</span><span>${p}</span>`;
+    item.onclick=()=>{idx=i;renderPages();showPage(i)};
+    list.appendChild(item);
+  });
+}
+function showPage(i){
+  const f=document.getElementById('frame');
+  f.src=`/file/${path}/${pages[i]}`;
+  document.getElementById('pageTitle').textContent=`P${i} (${i+1}/${pages.length})`;
+  applyZoom();
+}
+function prevPage(){if(idx>0){idx--;renderPages();showPage(idx)}}
+function nextPage(){if(idx<pages.length-1){idx++;renderPages();showPage(idx)}}
+function applyZoom(){
+  if(reportType==='single')return;
+  const f=document.getElementById('frame');const c=document.getElementById('content');
+  if(zoomMode==='fit'){
+    const sx=c.clientWidth/1017;const sy=c.clientHeight/720;
+    const s=Math.min(sx,sy,1.5);f.style.transform=`scale(${s})`}
+  else{f.style.transform='scale(1)'}
+}
+function zoomFit(){zoomMode='fit';applyZoom()}
+function zoom100(){zoomMode='100';applyZoom()}
+document.addEventListener('keydown',e=>{
+  if(reportType==='single')return;
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp')prevPage();
+  if(e.key==='ArrowRight'||e.key==='ArrowDown')nextPage();
+});
+window.addEventListener('resize',()=>applyZoom());
+loadReport();
+</script>
+</body>
+</html>

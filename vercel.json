@@ -1,0 +1,10 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/file/:path*", "destination": "/reports/:path*" },
+    { "source": "/view/:name", "destination": "/view/index.html" }
+  ],
+  "redirects": [
+    { "source": "/view", "destination": "/", "permanent": false }
+  ]
+}

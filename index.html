@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>HTML 报告浏览器</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0d1117;--card:#161b22;--p:#4f8af7;--pm:rgba(79,138,247,.12);--bd:rgba(79,138,247,.22);--t:#e6edf3;--mt:#8b949e;--content-bg:#1a1a2e;--font:'Source Sans 3','Noto Sans SC',system-ui,sans-serif}
+html,body{height:100%;background:var(--bg);font-family:var(--font);color:var(--t)}
+.wrap{max-width:900px;margin:0 auto;padding:40px 24px}
+header{text-align:center;margin-bottom:40px}
+header h1{font-size:28px;font-weight:700;color:var(--t);margin-bottom:8px}
+header p{color:var(--mt);font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:20px;cursor:pointer;transition:border-color .2s,transform .2s,background .2s}
+.card:hover{border-color:var(--p);transform:translateY(-2px)}
+.card .name{font-size:16px;font-weight:600;color:var(--p);margin-bottom:6px;word-break:break-all}
+.card .title{font-size:13px;color:var(--mt);margin-bottom:12px;min-height:18px}
+.card .meta{font-size:12px;color:var(--mt);display:flex;gap:12px}
+.card .meta span{display:flex;align-items:center;gap:4px}
+.badge{background:var(--pm);border:1px solid var(--bd);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--p)}
+.empty{text-align:center;color:var(--mt);padding:80px 0;font-size:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>HTML 报告浏览器</h1>
+<p>自动索引报告</p>
+</header>
+<div class="grid" id="grid"></div>
+<div class="empty" id="empty" style="display:none">未找到报告</div>
+</div>
+<script>
+function renderReports(data){
+  if(!data.length){document.getElementById('grid').style.display='none';
+    document.getElementById('empty').style.display='block';return}
+  document.getElementById('grid').style.display='grid';
+  document.getElementById('empty').style.display='none';
+  const g=document.getElementById('grid');g.innerHTML='';
+  data.forEach(r=>{
+    const c=document.createElement('div');c.className='card';
+    c.onclick=()=>location.href='/view/'+r.name;
+    c.innerHTML=`<div class="name">${r.name}</div>
+<div class="title">${r.title||'无标题'}</div>
+<div class="meta">
+<span><span class="badge">${r.type==='single'?'单页':'目录'}</span></span>
+<span><span class="badge">${r.page_count} 页</span></span>
+${r.figures.length?`<span><span class="badge">${r.figures.length} 图</span></span>`:''}
+</div>`;
+    g.appendChild(c);
+  });
+}
+fetch('/api/reports').then(r=>r.json()).then(renderReports);
+</script>
+</body>
+</html>
