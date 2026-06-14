@@ -40,7 +40,7 @@ function renderReports(data){
   const g=document.getElementById('grid');g.innerHTML='';
   data.forEach(r=>{
     const c=document.createElement('div');c.className='card';
-    c.onclick=()=>location.href='/view/'+r.name;
+    c.onclick=()=>location.href='./view/?name='+encodeURIComponent(r.name);
     c.innerHTML=`<div class="name">${r.name}</div>
 <div class="title">${r.title||'无标题'}</div>
 <div class="meta">
@@ -51,7 +51,7 @@ ${r.figures.length?`<span><span class="badge">${r.figures.length} 图</span></sp
     g.appendChild(c);
   });
 }
-fetch('/api/reports').then(r=>r.json()).then(renderReports);
+fetch('./manifest.json').then(r=>r.json()).then(renderReports);
 </script>
 </body>
 </html>

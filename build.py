@@ -1,9 +1,13 @@
-from http.server import BaseHTTPRequestHandler
+#!/usr/bin/env python3
+"""Scan reports directory and generate manifest.json for static deployment."""
+
 import json
 import re
 from pathlib import Path
 
-REPORTS_DIR = Path(__file__).resolve().parent.parent / "reports"
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPORTS_DIR = SCRIPT_DIR / "reports"
+OUTPUT_FILE = SCRIPT_DIR / "manifest.json"
 
 
 def scan_reports():
@@ -15,7 +19,8 @@ def scan_reports():
             continue
         if entry.is_dir():
             pages = sorted(
-                [f.name for f in entry.iterdir() if f.is_file() and re.match(r"p\d+\.html$", f.name)]
+                [f.name for f in entry.iterdir()
+                 if f.is_file() and re.match(r"p\d+\.html$", f.name)]
             )
             if not pages:
                 continue
@@ -55,11 +60,14 @@ def _extract_title(fpath):
     return ""
 
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        data = scan_reports()
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(json.dumps(data, ensure_ascii=False).encode("utf-8"))
+def main():
+    data = scan_reports()
+    OUTPUT_FILE.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print(f"Generated {OUTPUT_FILE} with {len(data)} reports")
+
+
+if __name__ == "__main__":
+    main()
