@@ -38,7 +38,7 @@
   };
   document.addEventListener('keydown',function(e){if(e.key==='Escape')lb.classList.remove('active')});
 
-  lbImg.addEventListener('wheel',function(e){
+  lb.addEventListener('wheel',function(e){
     e.preventDefault();
     var d=e.deltaY>0?-0.08:0.08;
     scale=Math.max(0.5,Math.min(scale+d,5));
@@ -48,7 +48,13 @@
   lbImg.addEventListener('mousedown',function(e){
     e.preventDefault();
     dragging=true;lastX=e.clientX;lastY=e.clientY;
-    lbImg.style.cursor='grab';
+    lbImg.style.cursor='grabbing';
+  });
+  lbImg.addEventListener('mouseenter',function(){
+    if(!dragging)lbImg.style.cursor='grab';
+  });
+  lbImg.addEventListener('mouseleave',function(){
+    lbImg.style.cursor='';
   });
   window.addEventListener('mousemove',function(e){
     if(!dragging)return;
@@ -58,7 +64,7 @@
   });
   window.addEventListener('mouseup',function(){
     dragging=false;
-    lbImg.style.cursor='zoom-out';
+    lbImg.style.cursor='grab';
   });
-  lbImg.style.cursor='zoom-out';
+  lb.style.cursor='zoom-out';
 })();
