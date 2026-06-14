@@ -25,12 +25,14 @@ def scan_reports():
             if not pages:
                 continue
             title = _extract_title(entry / pages[0])
+            description = _extract_description(entry / pages[0])
             figures = sorted(
                 [f.name for f in (entry / "figures").iterdir() if f.is_file()]
             ) if (entry / "figures").is_dir() else []
             results.append({
                 "name": entry.name,
                 "title": title,
+                "description": description,
                 "type": "directory",
                 "pages": pages,
                 "figures": figures,
@@ -38,9 +40,11 @@ def scan_reports():
             })
         elif entry.is_file() and entry.suffix.lower() == ".html":
             title = _extract_title(entry)
+            description = _extract_description(entry)
             results.append({
                 "name": entry.name,
                 "title": title,
+                "description": description,
                 "type": "single",
                 "pages": [entry.name],
                 "figures": [],
@@ -53,6 +57,17 @@ def _extract_title(fpath):
     try:
         content = fpath.read_text(encoding="utf-8", errors="ignore")
         m = re.search(r"<title>(.*?)</title>", content, re.IGNORECASE)
+        if m:
+            return m.group(1).strip()
+    except Exception:
+        pass
+    return ""
+
+
+def _extract_description(fpath):
+    try:
+        content = fpath.read_text(encoding="utf-8", errors="ignore")
+        m = re.search(r"<h1>(.*?)</h1>", content, re.IGNORECASE)
         if m:
             return m.group(1).strip()
     except Exception:

@@ -2,20 +2,23 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>HTML 报告浏览器</title>
+<title>AI论文报告</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0d1117;--card:#161b22;--p:#4f8af7;--pm:rgba(79,138,247,.12);--bd:rgba(79,138,247,.22);--t:#e6edf3;--mt:#8b949e;--content-bg:#1a1a2e;--font:'Source Sans 3','Noto Sans SC',system-ui,sans-serif}
-html,body{height:100%;background:var(--bg);font-family:var(--font);color:var(--t)}
+:root{--bg:#0d1117;--card:#161b22;--p:#4f8af7;--pm:rgba(79,138,247,.12);--bd:rgba(79,138,247,.22);--t:#e6edf3;--mt:#8b949e;--font:'Source Sans 3','Noto Sans SC',system-ui,sans-serif}
+html,body{background:var(--bg);font-family:var(--font);color:var(--t)}
 .wrap{max-width:900px;margin:0 auto;padding:40px 24px}
-header{text-align:center;margin-bottom:40px}
-header h1{font-size:28px;font-weight:700;color:var(--t);margin-bottom:8px}
-header p{color:var(--mt);font-size:14px}
+header{text-align:center;margin-bottom:32px}
+header h1{font-size:28px;font-weight:700;color:var(--t)}
+.search{margin-bottom:24px}
+.search input{width:100%;padding:10px 16px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--t);font-size:14px;font-family:var(--font);outline:none;transition:border-color .2s}
+.search input::placeholder{color:var(--mt)}
+.search input:focus{border-color:var(--p)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:20px;cursor:pointer;transition:border-color .2s,transform .2s,background .2s}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:20px;cursor:pointer;transition:border-color .2s,transform .2s}
 .card:hover{border-color:var(--p);transform:translateY(-2px)}
-.card .name{font-size:16px;font-weight:600;color:var(--p);margin-bottom:6px;word-break:break-all}
-.card .title{font-size:13px;color:var(--mt);margin-bottom:12px;min-height:18px}
+.card .title{font-size:16px;font-weight:600;color:var(--p);margin-bottom:8px;word-break:break-all}
+.card .desc{font-size:13px;color:var(--mt);margin-bottom:12px;line-height:1.5}
 .card .meta{font-size:12px;color:var(--mt);display:flex;gap:12px}
 .card .meta span{display:flex;align-items:center;gap:4px}
 .badge{background:var(--pm);border:1px solid var(--bd);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--p)}
@@ -25,24 +28,35 @@ header p{color:var(--mt);font-size:14px}
 <body>
 <div class="wrap">
 <header>
-<h1>HTML 报告浏览器</h1>
-<p>自动索引报告</p>
+<h1>AI论文报告</h1>
 </header>
+<div class="search"><input id="searchBox" type="text" placeholder="搜索报告标题或描述..." /></div>
 <div class="grid" id="grid"></div>
-<div class="empty" id="empty" style="display:none">未找到报告</div>
+<div class="empty" id="empty" style="display:none">未找到匹配的报告</div>
 </div>
 <script>
+let allReports=[];
 function renderReports(data){
-  if(!data.length){document.getElementById('grid').style.display='none';
+  allReports=data;
+  filterReports();
+}
+function filterReports(){
+  const q=(document.getElementById('searchBox').value||'').toLowerCase().trim();
+  const filtered=allReports.filter(r=>{
+    const t=(r.title||r.name).toLowerCase();
+    const d=(r.description||'').toLowerCase();
+    return !q||t.includes(q)||d.includes(q);
+  });
+  if(!filtered.length){document.getElementById('grid').style.display='none';
     document.getElementById('empty').style.display='block';return}
   document.getElementById('grid').style.display='grid';
   document.getElementById('empty').style.display='none';
   const g=document.getElementById('grid');g.innerHTML='';
-  data.forEach(r=>{
+  filtered.forEach(r=>{
     const c=document.createElement('div');c.className='card';
     c.onclick=()=>location.href='./view/?name='+encodeURIComponent(r.name);
-    c.innerHTML=`<div class="name">${r.name}</div>
-<div class="title">${r.title||'无标题'}</div>
+    c.innerHTML=`<div class="title">${r.title||r.name}</div>
+${r.description?`<div class="desc">${r.description}</div>`:''}
 <div class="meta">
 <span><span class="badge">${r.type==='single'?'单页':'目录'}</span></span>
 <span><span class="badge">${r.page_count} 页</span></span>
@@ -51,6 +65,7 @@ ${r.figures.length?`<span><span class="badge">${r.figures.length} 图</span></sp
     g.appendChild(c);
   });
 }
+document.getElementById('searchBox').addEventListener('input',filterReports);
 fetch('./manifest.json').then(r=>r.json()).then(renderReports);
 </script>
 </body>
