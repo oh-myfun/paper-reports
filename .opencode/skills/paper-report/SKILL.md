@@ -132,11 +132,19 @@ def img_to_base64(path):
 **文件命名**：从论文标题中提取核心关键词作为简短标题（去除特殊字符，空格替换为短横线或下划线）。
 
 **[MD] Markdown 模式输出**（保存到 `{workspace}/outputs/`）：
-1. `report_{简短标题}.md` — Markdown 报告
+1. `{简短标题}.md` — Markdown 报告
 2. `{简短标题}-images/` — 图片文件夹
 
 **[HTML] HTML 模式输出**（保存到 `{workspace}/outputs/`）：
-1. `report_{简短标题}.html` — 自包含 HTML（base64 内嵌图片）
+1. `{简短标题}.html` — 自包含 HTML（base64 内嵌图片）
+
+### 报告头部链接要求
+
+报告头部区域必须包含以下链接（如信息可获取）：
+- **论文链接**：arXiv 论文提供 `https://arxiv.org/abs/{ARXIV_ID}` 链接；其他来源提供对应的论文 URL
+- **代码仓链接**：如论文中提及了开源代码仓库（GitHub 等），在头部一并附上链接
+
+链接样式应使用与报告整体一致的强调色（如 `<a href="..." style="color:var(--text-link)">`）。
 
 ---
 

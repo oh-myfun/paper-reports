@@ -7,6 +7,10 @@
 > 机构：{{AFFILIATIONS}}
 >
 > 来源：{{VENUE}} · {{YEAR}}
+>
+> 论文：{{PAPER_URL}}
+>
+> 代码：{{CODE_URL}}
 
 ---
 
