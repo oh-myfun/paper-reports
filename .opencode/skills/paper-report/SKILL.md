@@ -26,7 +26,7 @@ description: Convert academic papers into structured Chinese reading reports wit
 
 输出格式决定后续的图片处理方式：
 - **Markdown 模式**：图片保存为独立文件，Markdown 中用相对路径引用。
-- **HTML 模式**：图片转为 base64 内嵌，生成自包含 HTML。
+- **HTML 模式**：图片保存为独立文件（`{简短标题}/` 目录），HTML 中用相对路径引用；CSS/JS 引用 `../static/report.css` 和 `../static/report.js`。
 
 > 后续步骤中，标注 `[MD]` 的仅 Markdown 模式执行，`[HTML]` 的仅 HTML 模式执行，无标注的两种都执行。
 
@@ -95,20 +95,29 @@ curl -sI "https://arxiv.org/html/{ARXIV_ID}" | head -1
 ![图 1 说明](./{论文简短标题}-images/fig1.png)
 ```
 
-**[HTML] HTML 模式**：将图片转为 base64 嵌入：
+**[HTML] HTML 模式**：将图片保存为独立文件，HTML 中用相对路径引用：
 
-```python
-import base64
-
-def img_to_base64(path):
-    with open(path, "rb") as f:
-        data = base64.b64encode(f.read()).decode()
-    ext = path.rsplit(".", 1)[-1]
-    mime = {"png": "image/png", "jpg": "image/jpeg"}.get(ext, "image/png")
-    return f"data:{mime};base64,{data}"
+图片文件放在 `{简短标题}/` 目录下（与 HTML 文件同级），命名为 `img01.png`、`img02.png` 等（附录图片命名为 `appendix-img01.png` 等）。HTML 中使用：
+```html
+<img src="{简短标题}/img01.png" alt="Figure 1: ...">
 ```
 
-在 HTML 中使用：`<img src="{base64_data}" alt="Figure 1" style="max-width:100%;">`
+目录结构示例：
+```
+reports/
+  minimind-o.html
+  minimind-o/
+    img01.png
+    img02.png
+    ...
+  supertonic-tts.html
+  supertonic-tts-appendix.html
+  supertonic-tts/
+    img01.png
+    ...
+    appendix-img01.png
+    ...
+```
 
 ### 图表选取原则
 
@@ -136,9 +145,10 @@ def img_to_base64(path):
 1. `{简短标题}.md` — Markdown 报告
 2. `{简短标题}-images/` — 图片文件夹
 
-**[HTML] HTML 模式输出**（保存到 `{workspace}/outputs/`）：
-1. `{简短标题}.html` — 自包含 HTML（base64 内嵌图片）
-2. `{简短标题}-appendix.html` — 附录扩展页面（可选，当附录内容过长影响主报告阅读时创建）
+**[HTML] HTML 模式输出**（保存到 `{workspace}/reports/`）：
+1. `{简短标题}.html` — HTML 报告（图片以相对路径引用同级目录中的文件）
+2. `{简短标题}/` — 图片文件夹（与 HTML 同级）
+3. `{简短标题}-appendix.html` — 附录扩展页面（可选，当附录内容过长影响主报告阅读时创建。附录图片同样放在 `{简短标题}/` 目录下，以 `appendix-` 前缀命名）
 
 ### 报告头部链接要求
 
@@ -174,14 +184,18 @@ def img_to_base64(path):
 
 - HTML 基本结构完整（`<!DOCTYPE html>`、`<html>`、`<head>`、`<body>`、`</html>` 齐全）
 - **MathJax 已引入**：`<head>` 中包含 MathJax 配置和 `tex-svg.js` 脚本引用
-- **交互功能必须包含**：每个 HTML 报告必须包含以下交互功能：
-  - **图片放大灯箱**：点击 `.figure img` 打开全屏 overlay，支持滚轮缩放和拖拽平移，Escape 键关闭
-  - **阅读进度指示器**：固定右下角的圆形 SVG 进度指示器，显示滚动百分比，点击回到顶部
-  - 参考实现：`../static/report.css`（进度指示器和灯箱样式）和 `../static/report.js`（交互逻辑），或参照 `reports/minimind-o.html` 的内嵌实现
-- 所有 `<img>` 的 `src` 为有效 base64 data URI（以 `data:image/png;base64,` 或 `data:image/jpeg;base64,` 开头）
-- 不存在外部图片链接或本地文件路径引用
+- **CSS/JS 引用外部文件**：`<head>` 中引用 `../static/report.css`，`<body>` 末尾引用 `../static/report.js`，不得内嵌样式或交互脚本
+- **交互功能 HTML 元素必须存在**（CSS/JS 由外部文件提供，但 HTML 元素必须写在页面中）：
+  - `<div class="progress-indicator" id="progressIndicator">` + SVG + progress-text（进度指示器）
+  - `<div class="lightbox-overlay" id="lightbox">` + `<img id="lightboxImg" />`（图片灯箱）
+  - 参考 `report-template.html` 中的完整结构
+- 所有 `<img>` 的 `src` 为有效相对路径引用（指向同级 `{简短标题}/` 目录下的图片文件）
+- 不存在 base64 data URI 或外部图片链接
+- **必须用 `ls` 命令显式验证图片文件存在**：
+  ```bash
+  ls {workspace}/reports/{简短标题}/
+  ```
 - 每张图片有描述性 `alt` 属性和 `<figcaption>`
-- CSS 样式内嵌在 `<style>` 标签中，无外部样式表依赖
 - **公式反斜杠检查**：确认 LaTeX 命令前是单个 `\`（如 `\mathbf`），而非 `\\mathbf`。可用 `grep -c '\\\\\\\\math' file.html` 检查（结果应为 0）
 
 **如果发现问题**：直接修复对应文件，修复后重新保存到同一路径。
