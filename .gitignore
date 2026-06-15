@@ -1,5 +1,6 @@
 /pages/
 /figures/
+/papers/
 __pycache__/
 *.pyc
 .opencode/
