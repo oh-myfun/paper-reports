@@ -10,18 +10,26 @@ html,body{background:var(--bg);font-family:var(--font);color:var(--t)}
 .wrap{max-width:900px;margin:0 auto;padding:40px 24px}
 header{text-align:center;margin-bottom:32px}
 header h1{font-size:28px;font-weight:700;color:var(--t)}
-.search{margin-bottom:24px}
-.search input{width:100%;padding:10px 16px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--t);font-size:14px;font-family:var(--font);outline:none;transition:border-color .2s}
-.search input::placeholder{color:var(--mt)}
-.search input:focus{border-color:var(--p)}
+.filters{margin-bottom:24px}
+.filters .search{margin-bottom:16px}
+.filters .search input{width:100%;padding:10px 16px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--t);font-size:14px;font-family:var(--font);outline:none;transition:border-color .2s}
+.filters .search input::placeholder{color:var(--mt)}
+.filters .search input:focus{border-color:var(--p)}
+.filters .filter-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.filters .filter-row .label{font-size:13px;color:var(--mt);min-width:40px}
+#typeBtns,#sizeBtns{display:flex;flex-wrap:wrap;gap:10px}
+.filter-btn{background:var(--pm);border:1px solid var(--bd);border-radius:6px;padding:5px 14px;font-size:12px;color:var(--p);cursor:pointer;transition:background .15s,border-color .15s,color .15s;font-family:var(--font);white-space:nowrap}
+.filter-btn:hover{border-color:var(--p)}
+.filter-btn.active{background:var(--bd);border-color:var(--p);color:var(--t)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:20px;cursor:pointer;transition:border-color .2s,transform .2s}
 .card:hover{border-color:var(--p);transform:translateY(-2px)}
 .card .title{font-size:16px;font-weight:600;color:var(--p);margin-bottom:8px;word-break:break-all}
 .card .desc{font-size:13px;color:var(--mt);margin-bottom:12px;line-height:1.5}
-.card .meta{font-size:12px;color:var(--mt);display:flex;gap:12px}
-.card .meta span{display:flex;align-items:center;gap:4px}
-.badge{background:var(--pm);border:1px solid var(--bd);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--p)}
+.card .meta{font-size:12px;color:var(--mt);display:flex;flex-wrap:wrap;gap:6px}
+.badge{background:var(--pm);border:1px solid var(--bd);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--p);cursor:default}
+.badge[title]{position:relative}
+.badge[title]:hover::after{content:attr(title);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--bd);padding:4px 10px;border-radius:6px;font-size:11px;color:var(--mt);white-space:nowrap;z-index:10}
 .empty{text-align:center;color:var(--mt);padding:80px 0;font-size:16px}
 </style>
 </head>
@@ -30,22 +38,98 @@ header h1{font-size:28px;font-weight:700;color:var(--t)}
 <header>
 <h1>AI论文报告</h1>
 </header>
-<div class="search"><input id="searchBox" type="text" placeholder="搜索报告标题或描述..." /></div>
+<div class="filters">
+  <div class="search"><input id="searchBox" type="text" placeholder="搜索报告标题、描述或标签..." /></div>
+  <div class="filter-row"><span class="label">类型</span><div id="typeBtns"></div></div>
+  <div class="filter-row"><span class="label">参数量</span><div id="sizeBtns"></div></div>
+</div>
 <div class="grid" id="grid"></div>
 <div class="empty" id="empty" style="display:none">未找到匹配的报告</div>
 </div>
 <script>
+const TAG_TIPS={
+  'TTS':'Text-to-Speech 文本转语音',
+  'ASR':'Automatic Speech Recognition 自动语音识别',
+  'VC':'Voice Conversion 语音转换',
+  'LM':'Language Model 语言模型',
+  'Omni':'Omni-modal 全模态',
+  'DiT':'Diffusion Transformer 扩散Transformer',
+  'Appendix':'附录'
+};
+
 let allReports=[];
-function renderReports(data){
-  allReports=data;
-  filterReports();
+let activeTags=[];
+let activeSize=null;
+
+function parseSize(tag){
+  const m=tag.match(/^([\d.]+)(M|B)$/i);
+  if(!m)return null;
+  return parseFloat(m[1])*(m[2].toUpperCase()==='B'?1000:1);
 }
+
+function buildFilterBtns(){
+  const typeTags=new Set();const sizeTags=new Set();
+  allReports.forEach(r=>(r.tags||[]).forEach(t=>{
+    if(parseSize(t))sizeTags.add(t);else typeTags.add(t);
+  }));
+  const tb=document.getElementById('typeBtns');tb.innerHTML='';
+  [...typeTags].sort().forEach(t=>{
+    const b=document.createElement('button');b.className='filter-btn';b.textContent=t;
+    b.title=TAG_TIPS[t]||t;
+    b.onclick=()=>{toggleTag(t,b);filterReports()};
+    tb.appendChild(b);
+  });
+  const sb=document.getElementById('sizeBtns');sb.innerHTML='';
+  const ranges=[
+    {label:'< 50M',max:50},
+    {label:'50M–100M',min:50,max:100},
+    {label:'100M–1B',min:100,max:1000},
+    {label:'> 1B',min:1000},
+    {label:'未知',unknown:true}
+  ];
+  ranges.forEach(r=>{
+    const b=document.createElement('button');b.className='filter-btn';b.textContent=r.label;
+    b.onclick=()=>{toggleSize(r,b);filterReports()};
+    sb.appendChild(b);
+  });
+}
+
+function toggleTag(t,btn){
+  const i=activeTags.indexOf(t);
+  if(i>=0){activeTags.splice(i,1);btn.classList.remove('active')}
+  else{activeTags.push(t);btn.classList.add('active')}
+}
+
+function toggleSize(range,btn){
+  if(activeSize&&activeSize.label===range.label){activeSize=null;btn.classList.remove('active')}
+  else{
+    document.querySelectorAll('#sizeBtns .filter-btn').forEach(b=>b.classList.remove('active'));
+    activeSize=range;btn.classList.add('active');
+  }
+}
+
+function renderReports(data){allReports=data;buildFilterBtns();filterReports()}
+
 function filterReports(){
   const q=(document.getElementById('searchBox').value||'').toLowerCase().trim();
   const filtered=allReports.filter(r=>{
     const t=(r.title||r.name).toLowerCase();
     const d=(r.description||'').toLowerCase();
-    return !q||t.includes(q)||d.includes(q);
+    const tags=(r.tags||[]).join(' ').toLowerCase();
+    const textMatch=!q||t.includes(q)||d.includes(q)||tags.includes(q);
+    const tagMatch=activeTags.length===0||activeTags.every(at=>(r.tags||[]).includes(at));
+    let sizeMatch=true;
+    if(activeSize){
+      if(activeSize.unknown){
+        const sizes=(r.tags||[]).filter(t=>parseSize(t));
+        sizeMatch=sizes.length===0;
+      }else{
+        const sizes=(r.tags||[]).filter(t=>parseSize(t)).map(t=>parseSize(t));
+        if(!sizes.length)sizeMatch=false;
+        else{const s=sizes[0];sizeMatch=(!activeSize.min||s>=activeSize.min)&&(!activeSize.max||s<=activeSize.max)}
+      }
+    }
+    return textMatch&&tagMatch&&sizeMatch;
   });
   if(!filtered.length){document.getElementById('grid').style.display='none';
     document.getElementById('empty').style.display='block';return}
@@ -55,13 +139,13 @@ function filterReports(){
   filtered.forEach(r=>{
     const c=document.createElement('div');c.className='card';
     c.onclick=()=>location.href='./view/?name='+encodeURIComponent(r.name);
+    const badges=(r.tags||[]).map(t=>{
+      const tip=TAG_TIPS[t]||'';
+      return `<span class="badge" ${tip?`title="${tip}"`:''}>${t}</span>`;
+    }).join('');
     c.innerHTML=`<div class="title">${r.title||r.name}</div>
 ${r.description?`<div class="desc">${r.description}</div>`:''}
-<div class="meta">
-<span><span class="badge">${r.type==='single'?'单页':'目录'}</span></span>
-<span><span class="badge">${r.page_count} 页</span></span>
-${r.figures.length?`<span><span class="badge">${r.figures.length} 图</span></span>`:''}
-</div>`;
+<div class="meta">${badges}</div>`;
     g.appendChild(c);
   });
 }
