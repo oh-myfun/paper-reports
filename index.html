@@ -17,13 +17,14 @@ header h1{font-size:28px;font-weight:700;color:var(--t)}
 .filters .search input:focus{border-color:var(--p)}
 .filters .filter-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
 .filters .filter-row .label{font-size:13px;color:var(--mt);min-width:40px}
-#typeBtns,#sizeBtns{display:flex;flex-wrap:wrap;gap:10px}
+#typeBtns,#sizeBtns,#yearBtns{display:flex;flex-wrap:wrap;gap:10px}
 .filter-btn{background:var(--pm);border:1px solid var(--bd);border-radius:6px;padding:5px 14px;font-size:12px;color:var(--p);cursor:pointer;transition:background .15s,border-color .15s,color .15s;font-family:var(--font);white-space:nowrap}
 .filter-btn:hover{border-color:var(--p)}
 .filter-btn.active{background:var(--bd);border-color:var(--p);color:var(--t)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:20px;cursor:pointer;transition:border-color .2s,transform .2s}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:20px;cursor:pointer;transition:border-color .2s,transform .2s;position:relative}
 .card:hover{border-color:var(--p);transform:translateY(-2px)}
+.card .year{position:absolute;top:16px;right:16px;font-size:12px;color:var(--mt)}
 .card .title{font-size:16px;font-weight:600;color:var(--p);margin-bottom:8px;word-break:break-all}
 .card .desc{font-size:13px;color:var(--mt);margin-bottom:12px;line-height:1.5}
 .card .meta{font-size:12px;color:var(--mt);display:flex;flex-wrap:wrap;gap:6px}
@@ -42,6 +43,7 @@ header h1{font-size:28px;font-weight:700;color:var(--t)}
   <div class="search"><input id="searchBox" type="text" placeholder="搜索报告标题、描述或标签..." /></div>
   <div class="filter-row"><span class="label">类型</span><div id="typeBtns"></div></div>
   <div class="filter-row"><span class="label">参数量</span><div id="sizeBtns"></div></div>
+  <div class="filter-row"><span class="label">年份</span><div id="yearBtns"></div></div>
 </div>
 <div class="grid" id="grid"></div>
 <div class="empty" id="empty" style="display:none">未找到匹配的报告</div>
@@ -60,6 +62,7 @@ const TAG_TIPS={
 let allReports=[];
 let activeTags=[];
 let activeSize=null;
+let activeYear=null;
 
 function parseSize(tag){
   const m=tag.match(/^([\d.]+)(M|B)$/i);
@@ -68,10 +71,13 @@ function parseSize(tag){
 }
 
 function buildFilterBtns(){
-  const typeTags=new Set();const sizeTags=new Set();
-  allReports.forEach(r=>(r.tags||[]).forEach(t=>{
-    if(parseSize(t))sizeTags.add(t);else typeTags.add(t);
-  }));
+  const typeTags=new Set();const sizeTags=new Set();const years=new Set();
+  allReports.forEach(r=>{
+    (r.tags||[]).forEach(t=>{
+      if(parseSize(t))sizeTags.add(t);else typeTags.add(t);
+    });
+    if(r.year)years.add(r.year);
+  });
   const tb=document.getElementById('typeBtns');tb.innerHTML='';
   [...typeTags].sort().forEach(t=>{
     const b=document.createElement('button');b.className='filter-btn';b.textContent=t;
@@ -82,8 +88,8 @@ function buildFilterBtns(){
   const sb=document.getElementById('sizeBtns');sb.innerHTML='';
   const ranges=[
     {label:'< 50M',max:50},
-    {label:'50M–100M',min:50,max:100},
-    {label:'100M–1B',min:100,max:1000},
+    {label:'50M\u2013100M',min:50,max:100},
+    {label:'100M\u20131B',min:100,max:1000},
     {label:'> 1B',min:1000},
     {label:'未知',unknown:true}
   ];
@@ -91,6 +97,12 @@ function buildFilterBtns(){
     const b=document.createElement('button');b.className='filter-btn';b.textContent=r.label;
     b.onclick=()=>{toggleSize(r,b);filterReports()};
     sb.appendChild(b);
+  });
+  const yb=document.getElementById('yearBtns');yb.innerHTML='';
+  [...years].sort((a,b)=>b-a).forEach(y=>{
+    const b=document.createElement('button');b.className='filter-btn';b.textContent=y;
+    b.onclick=()=>{toggleYear(y,b);filterReports()};
+    yb.appendChild(b);
   });
 }
 
@@ -105,6 +117,14 @@ function toggleSize(range,btn){
   else{
     document.querySelectorAll('#sizeBtns .filter-btn').forEach(b=>b.classList.remove('active'));
     activeSize=range;btn.classList.add('active');
+  }
+}
+
+function toggleYear(y,btn){
+  if(activeYear===y){activeYear=null;btn.classList.remove('active')}
+  else{
+    document.querySelectorAll('#yearBtns .filter-btn').forEach(b=>b.classList.remove('active'));
+    activeYear=y;btn.classList.add('active');
   }
 }
 
@@ -129,7 +149,8 @@ function filterReports(){
         else{const s=sizes[0];sizeMatch=(!activeSize.min||s>=activeSize.min)&&(!activeSize.max||s<=activeSize.max)}
       }
     }
-    return textMatch&&tagMatch&&sizeMatch;
+    const yearMatch=activeYear===null||r.year===activeYear;
+    return textMatch&&tagMatch&&sizeMatch&&yearMatch;
   });
   if(!filtered.length){document.getElementById('grid').style.display='none';
     document.getElementById('empty').style.display='block';return}
@@ -143,7 +164,8 @@ function filterReports(){
       const tip=TAG_TIPS[t]||'';
       return `<span class="badge" ${tip?`title="${tip}"`:''}>${t}</span>`;
     }).join('');
-    c.innerHTML=`<div class="title">${r.title||r.name}</div>
+    c.innerHTML=`${r.year?`<span class="year">${r.year}</span>`:''}
+<div class="title">${r.title||r.name}</div>
 ${r.description?`<div class="desc">${r.description}</div>`:''}
 <div class="meta">${badges}</div>`;
     g.appendChild(c);

@@ -9,6 +9,15 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPORTS_DIR = SCRIPT_DIR / "reports"
 OUTPUT_FILE = SCRIPT_DIR / "manifest.json"
 
+TAG_MAP = {
+    "minimind-o.html": ["LM", "Omni", "ASR", "0.1B"],
+    "omnivoice.html": ["TTS", "DiT", "0.6B"],
+    "seed-tts.html": ["TTS", "VC"],
+    "supertonic-tts.html": ["TTS", "44M"],
+    "supertonic-tts-appendix.html": ["TTS", "Appendix", "44M"],
+    "matcha-tts.html": ["TTS", "18M"],
+}
+
 
 def scan_reports():
     results = []
@@ -26,6 +35,7 @@ def scan_reports():
                 continue
             title = _extract_title(entry / pages[0])
             description = _extract_description(entry / pages[0])
+            year = _extract_year(entry / pages[0])
             figures = sorted(
                 [f.name for f in (entry / "figures").iterdir() if f.is_file()]
             ) if (entry / "figures").is_dir() else []
@@ -33,6 +43,8 @@ def scan_reports():
                 "name": entry.name,
                 "title": title,
                 "description": description,
+                "year": year,
+                "tags": TAG_MAP.get(entry.name, []),
                 "type": "directory",
                 "pages": pages,
                 "figures": figures,
@@ -41,10 +53,13 @@ def scan_reports():
         elif entry.is_file() and entry.suffix.lower() == ".html":
             title = _extract_title(entry)
             description = _extract_description(entry)
+            year = _extract_year(entry)
             results.append({
                 "name": entry.name,
                 "title": title,
                 "description": description,
+                "year": year,
+                "tags": TAG_MAP.get(entry.name, []),
                 "type": "single",
                 "pages": [entry.name],
                 "figures": [],
@@ -73,6 +88,23 @@ def _extract_description(fpath):
     except Exception:
         pass
     return ""
+
+
+def _extract_year(fpath):
+    try:
+        content = fpath.read_text(encoding="utf-8", errors="ignore")
+        m = re.search(r"来源[：:].*?·\s*(\d{4})", content)
+        if m:
+            return int(m.group(1))
+        m = re.search(r"arxiv\.org/abs/(\d{2})\d{2}\.\d+", content)
+        if m:
+            return int(m.group(1)) + 2000
+        m = re.search(r"arXiv:(\d{2})\d{2}\.\d+", content)
+        if m:
+            return int(m.group(1)) + 2000
+    except Exception:
+        pass
+    return None
 
 
 def main():
