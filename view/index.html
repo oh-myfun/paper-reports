@@ -12,26 +12,32 @@ html,body{height:100%;background:var(--bg);font-family:var(--font);color:var(--t
 .sidebar.hidden{display:none}
 .sidebar-header{padding:16px;border-bottom:1px solid var(--bd)}
 .sidebar-header h2{font-size:14px;color:var(--p);margin-bottom:4px;word-break:break-all}
-.sidebar-header a{font-size:12px;color:var(--mt);text-decoration:none}
-.sidebar-header a:hover{color:var(--p)}
 .page-list{flex:1;overflow-y:auto;padding:8px}
 .page-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--mt);transition:background .15s,color .15s}
 .page-item:hover{background:var(--pm);color:var(--t)}
 .page-item.active{background:var(--pm);color:var(--p);border:1px solid var(--bd)}
 .page-num{font-weight:600;font-size:11px;color:var(--p);min-width:24px}
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.toolbar{display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--bd);flex-shrink:0}
-.toolbar .page-title{font-size:13px;color:var(--t);flex:1}
-.toolbar button{background:var(--pm);border:1px solid var(--bd);color:var(--p);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px}
-.toolbar button:hover{background:var(--bd)}
+.toolbar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--bd);flex-shrink:0}
+.toolbar .left{display:flex;align-items:center;gap:12px}
+.toolbar .right{display:flex;align-items:center;gap:6px}
+.toolbar a{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--mt);text-decoration:none;padding:4px 10px;border-radius:6px;border:1px solid var(--bd);background:var(--pm);transition:background .15s,color .15s,border-color .15s}
+.toolbar a:hover{color:var(--p);border-color:var(--p)}
+.toolbar a svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.toolbar button{display:inline-flex;align-items:center;gap:4px;background:var(--pm);border:1px solid var(--bd);color:var(--p);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;transition:background .15s,border-color .15s}
+.toolbar button:hover{background:var(--bd);border-color:var(--p)}
+.toolbar button svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .toolbar .nav-group{display:flex;gap:4px}
 .toolbar .nav-group.hidden{display:none}
-.content{flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;background:var(--content-bg)}
-iframe{border:none;flex-shrink:0}
+.content{flex:1;overflow:auto;background:var(--content-bg);position:relative}
+iframe{border:none;width:100%;height:100%}
 iframe.fit{width:1017px;height:720px;transform-origin:center}
-iframe.full{width:100%;height:100%}
-.toolbar a{font-size:12px;color:var(--mt);text-decoration:none;flex-shrink:0}
-.toolbar a:hover{color:var(--p)}
+@media(max-width:768px){
+  .sidebar{display:none!important}
+  .toolbar{padding:10px 12px}
+  .toolbar button,.toolbar a{padding:6px 14px;font-size:13px;border-radius:8px}
+  iframe.fit{transform:none!important;width:100%!important;height:100%!important}
+}
 </style>
 </head>
 <body>
@@ -39,20 +45,33 @@ iframe.full{width:100%;height:100%}
 <div class="sidebar" id="sidebar">
 <div class="sidebar-header">
 <h2 id="reportName"></h2>
-<a href="../">返回</a>
 </div>
 <div class="page-list" id="pageList"></div>
 </div>
 <div class="main">
 <div class="toolbar">
-<a href="../" style="font-size:12px;color:var(--mt);text-decoration:none">返回</a>
-<div class="nav-group" id="navGroup">
-<button onclick="prevPage()">上一页</button>
-<button onclick="nextPage()">下一页</button>
-</div>
-<div class="page-title" id="pageTitle"></div>
-<button onclick="zoomFit()">适配</button>
-<button onclick="zoom100()">100%</button>
+  <div class="left">
+    <a href="../">
+      <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+      返回
+    </a>
+    <div class="nav-group" id="navGroup">
+      <button onclick="prevPage()">
+        <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+        上一页
+      </button>
+      <button onclick="nextPage()">
+        <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+        下一页
+      </button>
+    </div>
+  </div>
+  <div class="right">
+    <button id="fitBtn" onclick="toggleFit()">
+      <svg viewBox="0 0 24 24" id="fitIcon"><path d="M4 4h4v2H6v2H4V4zm12 0h4v4h-2V6h-2V4zM4 16h2v2h2v2H4v-4zm14 2v2h2v-4h-2v2z"/></svg>
+      适配
+    </button>
+  </div>
 </div>
 <div class="content" id="content">
 <iframe id="frame"></iframe>
@@ -61,7 +80,11 @@ iframe.full{width:100%;height:100%}
 </div>
 <script>
 const path=new URLSearchParams(location.search).get('name');
-let pages=[];let idx=0;let zoomMode='fit';let reportType='directory';
+let pages=[];let idx=0;let reportType='directory';
+let fitMode='standard';
+const STANDARD=880;
+const WIDE='100%';
+
 async function loadReport(){
   if(!path){document.getElementById('reportName').textContent='未指定报告';return}
   try{const r=await fetch('../manifest.json');const data=await r.json();
@@ -73,16 +96,39 @@ async function loadReport(){
     if(reportType==='single'){
       document.getElementById('sidebar').classList.add('hidden');
       document.getElementById('navGroup').classList.add('hidden');
-      document.getElementById('frame').classList.add('full');
-      document.getElementById('frame').classList.remove('fit');
-      document.getElementById('pageTitle').textContent=report.title||report.name;
       document.getElementById('frame').src='../reports/'+path;
+      document.getElementById('frame').onload=function(){
+        try{setFitMode('standard')}catch(e){}
+      };
       return}
     if(idx>=pages.length)idx=0;
-    document.getElementById('frame').classList.add('fit');
-    document.getElementById('frame').classList.remove('full');
     renderPages();showPage(idx)}catch(e){console.error(e)}
 }
+
+function setFitMode(mode){
+  fitMode=mode;
+  const f=document.getElementById('frame');
+  try{
+    const doc=f.contentDocument||f.contentWindow.document;
+    if(mode==='wide'){
+      doc.body.style.maxWidth=WIDE;
+      doc.body.style.padding='48px 16px';
+      document.getElementById('fitIcon').innerHTML='<path d="M3 5v14h18V5H3zm16 12H5V7h14v10z"/>';
+      document.getElementById('fitBtn').lastChild.textContent='标准';
+    }else{
+      doc.body.style.maxWidth=STANDARD+'px';
+      doc.body.style.padding='48px 28px';
+      document.getElementById('fitIcon').innerHTML='<path d="M4 4h4v2H6v2H4V4zm12 0h4v4h-2V6h-2V4zM4 16h2v2h2v2H4v-4zm14 2v2h2v-4h-2v2z"/>';
+      document.getElementById('fitBtn').lastChild.textContent='适配';
+    }
+  }catch(e){}
+}
+
+function toggleFit(){
+  if(fitMode==='standard')setFitMode('wide');
+  else setFitMode('standard');
+}
+
 function renderPages(){
   const list=document.getElementById('pageList');list.innerHTML='';
   pages.forEach((p,i)=>{
@@ -95,27 +141,14 @@ function renderPages(){
 function showPage(i){
   const f=document.getElementById('frame');
   f.src=`../reports/${path}/${pages[i]}`;
-  document.getElementById('pageTitle').textContent=`P${i} (${i+1}/${pages.length})`;
-  applyZoom();
 }
 function prevPage(){if(idx>0){idx--;renderPages();showPage(idx)}}
 function nextPage(){if(idx<pages.length-1){idx++;renderPages();showPage(idx)}}
-function applyZoom(){
-  if(reportType==='single')return;
-  const f=document.getElementById('frame');const c=document.getElementById('content');
-  if(zoomMode==='fit'){
-    const sx=c.clientWidth/1017;const sy=c.clientHeight/720;
-    const s=Math.min(sx,sy,1.5);f.style.transform=`scale(${s})`}
-  else{f.style.transform='scale(1)'}
-}
-function zoomFit(){zoomMode='fit';applyZoom()}
-function zoom100(){zoomMode='100';applyZoom()}
 document.addEventListener('keydown',e=>{
   if(reportType==='single')return;
   if(e.key==='ArrowLeft'||e.key==='ArrowUp')prevPage();
   if(e.key==='ArrowRight'||e.key==='ArrowDown')nextPage();
 });
-window.addEventListener('resize',()=>applyZoom());
 loadReport();
 </script>
 </body>
