@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FunAudioLLM</title>
+<link rel="stylesheet" href="../static/report.css">
+<script>
+MathJax = {
+  tex: {
+    inlineMath: [['$','$']],
+    displayMath: [['$$','$$']],
+    processEscapes: true
+  },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
+</head>
+<body>
+
+<!-- ==================== 报告头部 ==================== -->
+<div class="report-header">
+  <h1>FunAudioLLM</h1>
+  <p class="title-en">FunAudioLLM: Voice Understanding and Generation Foundation Models for Natural Interaction Between Humans and LLMs</p>
+  <div class="meta">
+    <span>作者：Tongyi SpeechTeam</span><br>
+    <span>机构：Alibaba Group</span><br>
+    <span>来源：arXiv:2407.04051 · 2024</span><br>
+    <span>论文：<a href="https://arxiv.org/abs/2407.04051" style="color:var(--text-link)">arxiv.org/abs/2407.04051</a></span><br>
+    <span>代码：<a href="https://github.com/FunAudioLLM" style="color:var(--text-link)">github.com/FunAudioLLM</a></span><br>
+    <span>Demo：<a href="https://fun-audio-llm.github.io" style="color:var(--text-link)">fun-audio-llm.github.io</a>
+  </div>
+</div>
+
+<!-- ==================== 正文区域 ==================== -->
+
+<h2>一、研究背景与动机</h2>
+
+<p>随着 GPT-4o、Gemini-1.5 等多模态大模型的兴起，人与机器之间的语音交互正成为 AI 落地的关键场景。然而，构建自然流畅的语音交互系统需要同时解决<strong>语音理解</strong>（识别、情感检测、音频事件检测）和<strong>语音生成</strong>（多语言、多说话人、可控风格）两大难题，现有系统往往只侧重一方。</p>
+
+<p>FunAudioLLM 的动机正是填补这一空白：通过<strong>SenseVoice</strong>（语音理解）和<strong>CosyVoice</strong>（语音生成）两个基础模型，结合 LLM 实现端到端的自然语音交互。SenseVoice 提供超低延迟的多语言 ASR、情感识别和音频事件检测；CosyVoice 提供零样本语音克隆、跨语言声音复制和指令可控的语音生成。两个模型均已开源（ModelScope + HuggingFace），训练/推理/微调代码在 GitHub 公开。</p>
+
+<figure class="figure">
+  <img src="fun-audiollm/img01.png" alt="Figure 1: FunAudioLLM 模型概览">
+  <figcaption>图 1：FunAudioLLM 模型家族概览。SenseVoice 负责语音理解（ASR + LID + SER + AED），CosyVoice 负责语音生成（零样本克隆 + 跨语言复制 + 指令可控），两者与 LLM 结合实现语音翻译、情感对话等应用。</figcaption>
+</figure>
+
+<h2>二、核心方法 / 技术方案</h2>
+
+<h3>2.1 语音理解模型：SenseVoice</h3>
+
+<p>SenseVoice 是一个多功能语音基础模型，同时支持<strong>自动语音识别（ASR）</strong>、<strong>语言识别（LID）</strong>、<strong>语音情感识别（SER）</strong>和<strong>音频事件检测/分类（AED/AEC）</strong>。论文提供两个规模版本：</p>
+<ul>
+  <li><strong>SenseVoice-Small</strong>（234M 参数）：非自回归编码器-only 模型，支持中/英/粤/日/韩 5 种语言，推理延迟 < 80ms，比 Whisper-small 快 5 倍以上，比 Whisper-large 快 15 倍以上</li>
+  <li><strong>SenseVoice-Large</strong>（1587M 参数）：自回归编码器-解码器模型，支持 50+ 种语言，精度更高</li>
+</ul>
+
+<figure class="figure">
+  <img src="fun-audiollm/img02.png" alt="Figure 2: SenseVoice 模型架构">
+  <figcaption>图 2：SenseVoice 模型架构。SenseVoice-Small（上）为编码器-only 非自回归模型，通过 4 个特殊 token 嵌入指定任务类型；SenseVoice-Large（下）为编码器-解码器自回归模型，通过解码器输入 token 序列指定任务。</figcaption>
+</figure>
+
+<p><strong>SenseVoice-Small 的多任务机制</strong>：输入语音经 80 维 log-mel 特征提取后下采样 6 倍，4 个特殊 token 嵌入 prepend 到特征序列前：</p>
+<ul>
+  <li>$\langle$LID$\rangle$：指定语言识别任务（训练时 80% 概率替换为真实语言标签，使模型既能预测语言也能接受指定语言）</li>
+  <li>$\langle$SER$\rangle$：指定情感识别任务</li>
+  <li>$\langle$AEC$\rangle$：指定音频事件分类任务</li>
+  <li>$\langle$ITN$\rangle$ / $\langle$NoITN$\rangle$：指定转录风格（含/不含逆文本标准化和标点）</li>
+</ul>
+
+<p>编码器使用<strong>记忆增强自注意力网络（SAN-M）</strong>，输出经线性层 + Softmax 映射到词表 $V'$（包含 ASR token 和各任务 token）。ASR 用 CTC loss 优化，LID/SER/AEC 用交叉熵 loss 优化。</p>
+
+<p><strong>SenseVoice-Large</strong>采用类似 Whisper 的架构，通过解码器输入 token 序列指定任务，优势在于转录精度和语言覆盖范围。</p>
+
+<h3>2.2 监督式语义语音分词器：$\mathcal{S}^3$</h3>
+
+<p>CosyVoice 的语音生成需要将语音信号转化为离散 token，供自回归语言模型预测。论文对比了三类分词器：残差量化型（SoundStream/EnCodec/FunCodec）、多组量化型（HifiCodec）和语义型（HuBERT）。这些无监督/自监督分词器与语义内容的关联较弱，导致合成不稳定且需要大量清洁数据。</p>
+
+<figure class="figure">
+  <img src="fun-audiollm/img03.png" alt="Figure 3: S3 语音分词器">
+  <figcaption>图 3：$\mathcal{S}^3$ 分词器架构。以预训练 SenseVoice-Large 编码器前 6 层为基础，在其后插入向量量化器（单码本，4096 词表），量化后追加位置编码。监督式训练使 token 与语义内容强关联。</figcaption>
+</figure>
+
+<p>论文提出<strong>监督式语义分词器 $\mathcal{S}^3$</strong>，以预训练 SenseVoice-Large 编码器前 6 层为基础，在其后插入向量量化器：</p>
+<ul>
+  <li>单码本设计，词表大小 4,096</li>
+  <li>Token 频率 50 Hz，降低语言模型计算负担</li>
+  <li>量化后追加位置编码保留时间信息</li>
+  <li>端到端监督训练（最小化 ASR 识别错误），使 token 与文本和副语言信息强关联</li>
+</ul>
+
+<p>由于监督训练，$\mathcal{S}^3$ 对数据噪声鲁棒，减少了对清洁数据的依赖，可使用更广泛的数据进行后续模型训练。在 Common Voice zh-CN 测试中，$\mathcal{S}^3$ token 的识别性能甚至超过 Whisper-Large-V3（相对错误率降低 4.14%）。</p>
+
+<h3>2.3 语音生成模型：CosyVoice</h3>
+
+<p>CosyVoice 是基于 $\mathcal{S}^3$ token 的语音生成模型族，支持中/英/日/粤/韩 5 种语言，发布三个 300M 参数的开源模型：</p>
+<ul>
+  <li><strong>CosyVoice-base-300M</strong>：零样本语音克隆 + 跨语言声音复制</li>
+  <li><strong>CosyVoice-instruct-300M</strong>：指令可控（说话人身份、说话风格、细粒度副语言特征如笑声/呼吸/强调）</li>
+  <li><strong>CosyVoice-sft-300M</strong>：7 个多语言说话人微调，即用型</li>
+</ul>
+
+<figure class="figure">
+  <img src="fun-audiollm/img04.png" alt="Figure 4: CosyVoice 模型架构">
+  <figcaption>图 4：CosyVoice 模型语义图。自回归 Transformer LM 从文本生成 $\mathcal{S}^3$ token，ODE-based 流匹配模型从 token 重建 mel 频谱，HiFTNet vocoder 从 mel 合成波形。虚线模块为可选组件（跨语言克隆/说话人微调）。</figcaption>
+</figure>
+
+<p><strong>系统架构</strong>包含三阶段：</p>
+<ol>
+  <li><strong>自回归语言模型（LM）</strong>：以文本 token 和条件 token 为输入，自回归预测 $\mathcal{S}^3$ speech token</li>
+  <li><strong>ODE-based 流匹配模型</strong>：基于最优传输 ODE，从生成的 token + 说话人嵌入重建 mel 频谱。仅需 5-10 步迭代即可产出高质量 mel 频谱。使用 classifier-free guidance（CFG）提升上下文学习能力，随机 mask 70%-100% 的前续特征条件</li>
+  <li><strong>HiFTNet vocoder</strong>：从预测的 mel 频谱合成波形，已改造支持流式生成</li>
+</ol>
+
+<p><strong>零样本上下文学习</strong>：对于同语言场景，将提示语音的 text + token 与输入文本合并为统一序列，提示语音 token 视为已生成；对于跨语言场景，省略提示语音的文本和 token，防止原始语言的韵律特征干扰目标语言。生成后的 speech token 与提示 token 拼接，作为流匹配模型的条件输入，同时加入说话人嵌入和提示语音的 mel 频谱增强音色和环境一致性。</p>
+
+<p><strong>指令微调</strong>：CosyVoice-instruct 在 CosyVoice-base 上用指令数据微调，支持三类可控指令：说话人身份描述（如"一位神秘优雅的舞者"）、说话风格描述（如"高音调快速说话的快乐女孩"）、细粒度副语言标记（如 `[laughter]`、`[breath]`、`<strong>强调</strong>`）。微调时移除 LM 中的说话人嵌入，使模型完全依赖指令文本控制输出。</p>
+
+<h2>三、实验设计</h2>
+
+<h3>3.1 训练数据</h3>
+
+<p><strong>SenseVoice 训练数据</strong>：SenseVoice-Small 使用约 300,000 小时音频（覆盖中/粤/英/日/韩 5 种语言），SenseVoice-Large 额外加入 100,000 小时多语言数据。AED 伪标签约 1.5 亿条，SER 伪标签约 3,000 万条。</p>
+
+<p><strong>CosyVoice 训练数据</strong>：总计约 170,000 小时（中 130k + 英 30k + 粤 5k + 日 4.6k + 韩 2.2k）。数据经语音检测、SNR 估计、说话人分离、信号分离等处理，用 SenseVoice-Large 和 Paraformer 生成伪文本标签，再经 force-alignment 模型精炼。</p>
+
+<p><strong>指令微调数据</strong>：说话人身份 101 小时、说话风格 407 小时、细粒度副语言 48 小时。</p>
+
+<h3>3.2 评估方法</h3>
+
+<ul>
+  <li><strong>ASR</strong>：CER（中/粤/日/韩/泰）和 WER（其他语言），在 AISHELL-1/2、WenetSpeech、LibriSpeech、Common Voice 等基准测试</li>
+  <li><strong>SER</strong>：在 7 个情感识别基准上评估 UA/WA/F1/WF1</li>
+  <li><strong>AED</strong>：在 ESC-50、婴儿哭声检测、Coswara 咳嗽检测等任务上评估 F1</li>
+  <li><strong>语音生成质量</strong>：WER/CER（内容一致性）+ 说话人相似度（SS），在 LibriTTS test-clean 和 AISHELL-3 测试集上评估</li>
+  <li><strong>情感可控性</strong>：6 种情感的指令控制准确率</li>
+</ul>
+
+<h2>四、实验结果与分析</h2>
+
+<h3>4.1 多语言语音识别</h3>
+
+<p>SenseVoice 在几乎所有中文/粤语基准上大幅超越 Whisper 对应版本。在 AISHELL-1 上，SenseVoice-L CER 2.09%（Whisper-L 5.14%）；在 Common Voice 粤语上，SenseVoice-S CER 7.09%（Whisper-L 10.41%）。LibriSpeech 上 Whisper-L 略优（clean: 1.82% vs 2.57%），但差距不大。</p>
+
+<figure class="figure">
+  <img src="fun-audiollm/img05.png" alt="Figure 7: SenseVoice vs Whisper 多语言对比">
+  <figcaption>图 5：SenseVoice-Large 与 Whisper-Large-V3 在 Common Voice 多语言基准上的 CER/WER 对比。SenseVoice 在粤语、加泰罗尼亚语、马拉地语等语言上显著优于 Whisper。</figcaption>
+</figure>
+
+<p><strong>推理效率</strong>：SenseVoice-S RTF 0.007，10s 音频延迟仅 70ms——远快于 Whisper-S（518ms）和 Whisper-L-V3（1281ms），是所有模型中最快的。</p>
+
+<h3>4.2 语音情感识别</h3>
+
+<p>SenseVoice 在 7 个 SER 基准上无需目标域微调即取得优异表现。SenseVoice-L 在 CASIA WA 96.0%、CREMA-D WA 90.4%、ESD WA 93.2%、IEMOCAP WA 75.3% 等指标上全面领先 EmoBox、Emo-Superb、MerBench 等基线。SenseVoice-S 也优于大多数开源 SER 模型（XLSR-SER、Qwen-Audio、SALMONN）。</p>
+
+<h3>4.3 音频事件检测</h3>
+
+<p>SenseVoice 在 ESC-50、婴儿哭声检测、Coswara 咳嗽检测等任务上的 F1 与 BEATs 和 PANNs 相当或略低，但有一个有趣发现：SenseVoice 和 Qwen-Audio 的准确率远高于召回率，对交互场景更友好。这是因为 SenseVoice 用 ASR + AED 伪标签训练而非 AED 专用数据。</p>
+
+<h3>4.4 语音生成质量</h3>
+
+<p>CosyVoice 在 LibriTTS test-clean（英文）和 AISHELL-3 test（中文）上达到<strong>人类水平</strong>的语音生成质量：</p>
+<ul>
+  <li>英文：CosyVoice WER 2.89%（接近原始语音 2.66%），SS 74.30%（高于原始 69.67%）；5$\times$ ASR re-ranking 后 WER 降至 1.51%</li>
+  <li>中文：CosyVoice CER 3.82%（接近原始 2.52%），SS 81.58%（高于原始 74.15%）；re-ranking 后 CER 降至 1.84%</li>
+  <li>ChatTTS 在中文 CER 与 CosyVoice 相近但插入/删除错误更多（111 vs 24.4），存在说话人泄漏问题</li>
+</ul>
+
+<h3>4.5 情感可控性</h3>
+
+<p>CosyVoice-instruct 在 6 种情感指令控制上的准确率显著优于 CosyVoice-base 和无指令的 CosyVoice-instruct。最突出的是：Sad 从 0.45 提升至 0.98，Disgusted 从 0.46 提升至 0.93，Angry 从 0.59 提升至 0.83。</p>
+
+<h3>4.6 CosyVoice 作为数据生成器</h3>
+
+<p>仅用 CosyVoice 合成数据训练 ASR 模型即可达到与原始 LibriSpeech 训练相当的效果。合成数据 + 原始数据混合训练后 WER 显著降低（test_clean: 2.79 → 2.56 → 2.04）。更有趣的是，基于 MLS 文本的合成数据比基于 LS 文本的合成数据效果更好，说明<strong>文本多样性比语音时长本身更关键</strong>。</p>
+
+<h2>五、应用场景</h2>
+
+<p>FunAudioLLM 通过 SenseVoice + LLM + CosyVoice 的组合实现四大应用：</p>
+<ul>
+  <li><strong>语音到语音翻译（S2ST）</strong>：SenseVoice 识别源语言语音 → LLM 翻译 → CosyVoice 跨语言声音复制，用自己声音说外语</li>
+  <li><strong>情感语音对话</strong>：SenseVoice 识别语音 + 情感 → LLM 生成带情感风格的回复文本 → CosyVoice-instruct 生成对应情感的语音</li>
+  <li><strong>交互式播客</strong>：LLM 多 Agent 系统生成内容 + 角色匹配 → CosyVoice 合成多角色语音，用户可实时插入对话</li>
+  <li><strong>表现力有声书</strong>：LLM 分析叙事结构、角色、细粒度情感 → CosyVoice-instruct 生成多角色、带情感的语音演绎</li>
+</ul>
+
+<h2>六、主要贡献与创新点</h2>
+
+<div class="highlight">
+  <ul>
+    <li><strong>SenseVoice 多功能语音基础模型</strong>：非自回归架构实现超低延迟（70ms）多语言 ASR，同时支持 LID/SER/AEC 四项任务，通过 4 个特殊 token 嵌入灵活切换</li>
+    <li><strong>监督式语义分词器 $\mathcal{S}^3$</strong>：基于 SenseVoice-Large 编码器的单码本（4096）监督分词器，token 与语义内容强关联，对数据噪声鲁棒</li>
+    <li><strong>CosyVoice 语音生成模型族</strong>：LM + ODE 流匹配 + HiFTNet vocoder 三阶段架构，300M 参数即达人类水平，零样本 3 秒克隆、跨语言复制、指令可控</li>
+    <li><strong>全链路开源</strong>：模型（3 个 CosyVoice + SenseVoice-Small）、训练/推理/微调代码、Demo 全部公开</li>
+    <li><strong>SenseVoice + CosyVoice + LLM 组合应用</strong>：S2ST、情感对话、交互播客、有声书——展示语音理解+生成与 LLM 融合的实用路径</li>
+  </ul>
+</div>
+
+<h2>七、局限性与未来方向</h2>
+
+<p>论文承认以下局限：</p>
+<ul>
+  <li><strong>SenseVoice</strong>：低资源语言 ASR 性能仍较低；不支持流式转录，未来需开发流式版本</li>
+  <li><strong>CosyVoice</strong>：仅支持 5 种语言；能根据显式指令控制情感但不能根据文本语义自动推断情感；歌唱能力差；保持原始音色同时实现情感变化仍有改进空间</li>
+  <li><strong>FunAudioLLM 整体</strong>：SenseVoice 和 CosyVoice 未与 LLM 端到端训练，pipeline 方式可能引入错误传播</li>
+</ul>
+
+<p>值得关注的隐性局限：</p>
+<ul>
+  <li>SenseVoice-Large 未开源，仅开源 Small 版本</li>
+  <li>CosyVoice 300M 参数在当前大模型趋势下规模偏小，长文本/复杂场景可能受限</li>
+  <li>论文以技术报告形式呈现，部分实验缺乏更深入的消融分析（如 $\mathcal{S}^3$ vs 其他分词器的合成质量对比仅间接提及）</li>
+</ul>
+
+<h2>八、个人点评与总结</h2>
+
+<p>FunAudioLLM 是一篇系统性强、工程完整度高的技术报告。其核心价值在于<strong>语音理解+生成+LLM 的全链路设计</strong>——SenseVoice 的非自回归架构在速度上碾压 Whisper，$\mathcal{S}^3$ 分词器的监督设计思路简洁有效，CosyVoice 的零样本克隆和指令控制在开源 TTS 中覆盖面最广。</p>
+
+<p>从方法角度看，$\mathcal{S}^3$ 分词器是本报告最有启发性的设计。传统无监督分词器（EnCodec/HuBERT）与语义关联弱，而 $\mathcal{S}^3$ 直接利用 ASR 模型的编码器做监督量化，让 token 自然携带语义信息。单码本 + 4096 词表的简洁设计也降低了 LM 的学习难度。</p>
+
+<p>SenseVoice-Small 的推理速度（70ms / RTF 0.007）是实际部署的杀手级优势。非自回归 + 多任务 token 嵌入的设计使得一个模型同时胜任 ASR/SER/AEC/LID，在交互场景中减少模型数量和推理开销。</p>
+
+<p>CosyVoice 在开源 TTS 中功能最全（零样本 + 跨语言 + 指令可控），300M 参数达到人类水平语音生成质量，但规模限制了更复杂场景的表现。未与 LLM 端到端训练也是架构层面的根本局限。</p>
+
+<p>总体而言，FunAudioLLM 是阿里巴巴通义语音团队的一次系统性展示，为语音理解+生成+LLM 融合提供了清晰的技术路径和完整的开源实现，对社区有较高参考价值。</p>
+
+<!-- ==================== 页脚 ==================== -->
+<div class="report-footer">
+  基于论文原文整理 · 仅供学术交流参考
+</div>
+
+<div class="progress-indicator" id="progressIndicator">
+  <svg viewBox="0 0 48 48">
+    <circle class="track" cx="24" cy="24" r="22" />
+    <circle class="fill" id="progressFill" cx="24" cy="24" r="22" transform="rotate(-90 24 24)" />
+  </svg>
+  <span class="progress-text" id="progressText">0%</span>
+</div>
+
+<div class="lightbox-overlay" id="lightbox">
+  <img id="lightboxImg" />
+</div>
+
+<script src="../static/report.js"></script>
+</body>
+</html>
