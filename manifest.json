@@ -1,0 +1,93 @@
+[
+  {
+    "name": "fun-audiollm.html",
+    "title": "FunAudioLLM",
+    "description": "语音理解与生成基础模型族，SenseVoice超低延迟多任务识别+CosyVoice零样本语音克隆与指令可控生成",
+    "year": 2024,
+    "tags": ["ASR", "TTS", "SER", "LM"],
+    "type": "single",
+    "pages": [
+      "fun-audiollm.html"
+    ],
+    "figures": [],
+    "page_count": 1
+  },
+  {
+    "name": "matcha-tts.html",
+    "title": "Matcha-TTS",
+    "description": "基于最优传输条件流匹配的快速非自回归TTS声学模型，2-4步即可高质量合成",
+    "year": 2024,
+    "tags": ["TTS", "18M"],
+    "type": "single",
+    "pages": [
+      "matcha-tts.html"
+    ],
+    "figures": [],
+    "page_count": 1
+  },
+  {
+    "name": "minimind-o.html",
+    "title": "MiniMind-O",
+    "description": "开放小规模语音原生全模态模型，支持语音、视觉、文本多模态理解与生成",
+    "year": 2026,
+    "tags": ["Omni", "ASR", "TTS", "0.1B"],
+    "type": "single",
+    "pages": [
+      "minimind-o.html"
+    ],
+    "figures": [],
+    "page_count": 1
+  },
+  {
+    "name": "omnivoice.html",
+    "title": "OmniVoice",
+    "description": "基于扩散语言模型的全语种零样本文本转语音系统",
+    "year": 2026,
+    "tags": ["TTS", "DiT", "0.6B"],
+    "type": "single",
+    "pages": [
+      "omnivoice.html"
+    ],
+    "figures": [],
+    "page_count": 1
+  },
+  {
+    "name": "seed-tts.html",
+    "title": "Seed-TTS",
+    "description": "大规模语音生成模型族，零样本ICL达到人类水平，含自蒸馏解耦与全扩散变体",
+    "year": 2024,
+    "tags": ["TTS", "VC", "LM", "DiT"],
+    "type": "single",
+    "pages": [
+      "seed-tts.html"
+    ],
+    "figures": [],
+    "page_count": 1
+  },
+  {
+    "name": "supertonic-tts.html",
+    "title": "SupertonicTTS",
+    "description": "面向高效精简的文本转语音系统，兼顾质量与部署效率",
+    "year": 2025,
+    "tags": ["TTS", "44M"],
+    "type": "single",
+    "pages": [
+      "supertonic-tts.html"
+    ],
+    "figures": [],
+    "page_count": 1
+  },
+  {
+    "name": "supertonic-tts-appendix.html",
+    "title": "SupertonicTTS 附录",
+    "description": "架构细节、优化策略、算法流程与补充实验结果",
+    "year": 2025,
+    "tags": ["TTS", "Appendix"],
+    "type": "single",
+    "pages": [
+      "supertonic-tts-appendix.html"
+    ],
+    "figures": [],
+    "page_count": 1
+  }
+]
